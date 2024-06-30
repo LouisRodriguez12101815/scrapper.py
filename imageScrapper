@@ -1,0 +1,60 @@
+from bs4 import BeautifulSoup
+import requests
+import os
+from datetime import datetime
+
+def generate_unique_filename(base_path, base_name):
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    counter = 0
+    while True:
+        if counter == 0:
+            filename = f"{base_name}_{timestamp}.txt"
+        else:
+            filename = f"{base_name}_{timestamp}_{counter}.txt"
+        full_path = os.path.join(base_path, filename)
+        if not os.path.exists(full_path):
+            return full_path
+        counter += 1
+
+# Prompt for the website URL
+url = input("Enter the website URL to scrape (e.g., https://deadfix.com/): ")
+
+# Prompt for the output file location with a default
+default_output_dir = os.path.join(os.path.expanduser("~"), "Desktop")
+output_dir = input(f"Enter the directory for the output file (default: {default_output_dir}): ")
+if not output_dir:
+    output_dir = default_output_dir
+
+# Generate a unique filename
+output_file = generate_unique_filename(output_dir, "imageFile")
+
+# Fetch the page
+page_to_scrape = requests.get(url)
+
+# Parse the page content
+soup = BeautifulSoup(page_to_scrape.text, "html.parser")
+
+# Find all img tags
+images = soup.find_all("img")
+
+try:
+    # Open the output file
+    with open(output_file, 'w') as f:
+        # Write images with numbered labels
+        for i, img in enumerate(images, 1):
+            # Get the 'src' attribute of each image
+            img_src = img.get('src')
+            if img_src:
+                # If the image source is relative, make it absolute
+                if img_src.startswith('/'):
+                    img_src = url.rstrip('/') + img_src
+                # Write the numbered label and image URL to the file
+                f.write(f"Image {i}: {img_src}\n")
+
+    print(f"Scraping complete. Results saved to {output_file}")
+
+except PermissionError:
+    print(f"Error: Permission denied. Unable to write to {output_file}")
+    print("Please choose a different location where you have write permissions.")
+except Exception as e:
+    print(f"An error occurred: {e}")
